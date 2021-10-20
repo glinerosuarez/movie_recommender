@@ -6,7 +6,7 @@ Code template for Udacity Machine Learning 2 final project. In this project you 
 Getting Started
 ---------------
 
-* You will need Python version 2.7.5 or up to get started. 
+* You will need Python version 3.7 to get started. 
 * Install scikit-learn. Use [scikit-learn Installation Docs][2].
 * Download project files directly using the .tar.gz or .zip links above. 
 * Hack!

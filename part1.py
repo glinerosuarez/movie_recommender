@@ -79,6 +79,7 @@ def pcs(x: User, y: User) -> float:
     """
     Finds the Pearson Correlation Similarity Measure between two users.
     """
+
     x_ratings = utility[x.id - 1]
     y_ratings = utility[y.id - 1]
 
@@ -87,8 +88,8 @@ def pcs(x: User, y: User) -> float:
     if len(common_ratings) == 0:
         return 0
     else:
-        x_diff = x_ratings[common_ratings] - x_ratings.mean()
-        y_diff = y_ratings[common_ratings] - y_ratings.mean()
+        x_diff = x_ratings[common_ratings] - x.avg_r
+        y_diff = y_ratings[common_ratings] - y.avg_r
         pcs_dividend = (x_diff * y_diff).sum()
         pcs_divisor = np.sqrt((x_diff**2).sum()) * np.sqrt((y_diff**2).sum())
 
@@ -115,7 +116,7 @@ def guess(user_id: int, i_id: int, top_n: int = 3) -> float:
     top_utility = utility[[t[1] - 1 for t in top_users]]
     norm_top_rating = (top_utility - np.expand_dims(top_utility.mean(axis=1), 1))[:, i_id - 1].mean()
 
-    return utility[user_id - 1].mean() + norm_top_rating
+    return _u.avg_r + norm_top_rating
 
 """
 Displays utility matrix and mean squared error.
