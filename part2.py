@@ -1,7 +1,9 @@
 #!/bin/python
+import pendulum
 import numpy as np
 from tqdm import trange
 from movielens import *
+from pathlib import Path
 from typing import Tuple
 from collections import deque
 from sklearn.metrics import mean_squared_error
@@ -75,11 +77,15 @@ def guess(user_id, i_id, top_n):
             else:
                 top_users.append((pcs(_u, u), u.id))
 
-    #print(f"top users for {user_id - 1}: {top_users}")
-    top_utility = utility[[t[1] - 1 for t in top_users]]
-    norm_top_rating = (top_utility - np.expand_dims(top_utility.mean(axis=1), 1))[:, i_id - 1].mean()
-
-    return _u.avg_r + norm_top_rating
+    if len(top_users) > 0:
+        #print(f"top users for {user_id - 1}: {top_users}")
+        top_uids, top_ratings = tuple(zip(*[(tu[1] - 1, user[tu[1] - 1].avg_r) for tu in top_users]))
+        top_utility = utility[list(top_uids)][:, i_id - 1]
+        norm_top_rating = (top_utility - np.expand_dims(top_ratings, 1)).mean()
+        result = _u.avg_r + norm_top_rating
+        return result
+    else:
+        return 0
 
 
 # Display the utility matrix as given in Part 1 of your project description
@@ -95,18 +101,56 @@ for i in trange(n_users):
     else:
         user[i].avg_r = 0.
 
-n = 150 # Assume top_n users
+n = 150  # Assume top_n users
 
-# Finds all the missing values of the utility matrix
+
+def fill_utility_matrix():
+    """Finds all the missing values of the utility matrix."""
+    def load_utility_matrix():
+        last_ts = 0
+        last_iter = 0
+        last_file = None
+
+        for f in Path("utility_matrix").iterdir():
+            iter, ts = tuple(f.stem.split("_"))
+            ts = int(ts)
+            if last_ts < ts:
+                last_ts = ts
+                last_iter = int(iter)
+                last_file = f
+
+        return last_file, last_iter
+
+    utility_file, last_iter = load_utility_matrix()
+    with open(utility_file, 'rb') as f:
+        utility_copy = np.load(f)
+
+    print(f"Loading matrix {utility_file.name}")
+    for i in trange(last_iter + 1, n_users):
+        # This process takes a lot of time, pickle a checkpoint every n_user/10 iterations
+        if (i % (n_users//10)) == 0 or (i == n_users - 1):
+            filename = f"utility_matrix/{i}_{pendulum.now().int_timestamp}.npy"
+            with open(filename, 'wb') as f:
+                print(f"saving utility matrix checkpoint {filename}")
+                np.save(f, utility_copy)
+        for j in range(n_items):
+            if utility_copy[i][j] == 0:
+                utility_copy[i][j] = guess(i+1, j+1, n)
+
+
 print("\nfilling utility matrix")
-utility_copy = np.copy(utility)
-for i in trange(n_users):
-    for j in range(n_items):
-        if utility_copy[i][j] == 0:
-            utility_copy[i][j] = guess(i+1, j+1, n)
+fill_utility_matrix()
 
 # Test without clustering
 print("testing performance")
+guesses = []
+real_ratings = []
+for i, r in enumerate(rating_test):
+    if i in [4049, 6749]:
+        print("watch out! nan guess")
+    guesses.append(guess(r.user_id, r.item_id, n))
+    real_ratings.append(r.rating)
+
 guesses, real_ratings = tuple(zip(*[(guess(r.user_id, r.item_id, n), r.rating) for r in rating_test]))
 # Finds the mean squared error of the ratings with respect to the test set
 print("Mean Squared Error is " + str(mean_squared_error(guesses, real_ratings)))

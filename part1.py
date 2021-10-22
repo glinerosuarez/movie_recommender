@@ -75,10 +75,8 @@ Definition of the pcs(x, y) and guess (u, i, top_n) functions.
 Complete these after reading the project description.
 """
 
-def pcs(x: User, y: User) -> float:
-    """
-    Finds the Pearson Correlation Similarity Measure between two users.
-    """
+def pcs(x, y):
+    """Finds the Pearson Correlation Similarity Measure between two users."""
 
     x_ratings = utility[x.id - 1]
     y_ratings = utility[y.id - 1]
@@ -96,27 +94,30 @@ def pcs(x: User, y: User) -> float:
         return pcs_dividend / pcs_divisor
 
 
-def guess(user_id: int, i_id: int, top_n: int = 3) -> float:
+def guess(user_id, i_id, top_n):
     """
     Guesses the ratings that user with id, user_id, might give to item with id, i_id. We will consider the top_n similar
-    users to do this. Use top_n as 3 in this example.
+    users to do this.
     """
     _u = user[user_id - 1]
     top_users: deque[Tuple[float, int]] = deque(maxlen=top_n)
 
     for u in user:
-        if u.id != user_id:
-            if utility[u.id - 1][i_id - 1] > 0:
-                if len(top_users) == top_n:
-                    top_users = deque(sorted(list(top_users) + [(pcs(_u, u), u.id)]), maxlen=top_n)
-                else:
-                    top_users.append((pcs(_u, u), u.id))
+        if u.id != user_id and utility[u.id - 1][i_id - 1] > 0:
+            if len(top_users) == top_n:
+                top_users = deque(sorted(list(top_users) + [(pcs(_u, u), u.id)]), maxlen=top_n)
+            else:
+                top_users.append((pcs(_u, u), u.id))
 
-    print(f"top users for {user_id - 1}: {top_users}")
-    top_utility = utility[[t[1] - 1 for t in top_users]]
-    norm_top_rating = (top_utility - np.expand_dims(top_utility.mean(axis=1), 1))[:, i_id - 1].mean()
-
-    return _u.avg_r + norm_top_rating
+    if len(top_users) > 0:
+        #print(f"top users for {user_id - 1}: {top_users}")
+        top_uids, top_ratings = tuple(zip(*[(tu[1] - 1, user[tu[1] - 1].avg_r) for tu in top_users]))
+        top_utility = utility[list(top_uids)][:, i_id - 1]
+        norm_top_rating = (top_utility - np.expand_dims(top_ratings, 1)).mean()
+        result = _u.avg_r + norm_top_rating
+        return result
+    else:
+        return 0
 
 """
 Displays utility matrix and mean squared error.
